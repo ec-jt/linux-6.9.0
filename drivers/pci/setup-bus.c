@@ -996,8 +996,8 @@ static inline bool bridge_is_c0_01_1(struct pci_dev *dev)
 	       (
                  /* c0:01.1 */  (dev->bus->number == 0xc0 && PCI_SLOT(dev->devfn) == 0x01) ||
 		 /* 00:03.1 */  (dev->bus->number == 0x00 && PCI_SLOT(dev->devfn) == 0x03) ||
-		 /* 40:01.1 */  (dev->bus->number == 0x40 && PCI_SLOT(dev->devfn) == 0x01)
-                 /* 80:03.1 */ /* (dev->bus->number == 0x80 && PCI_SLOT(dev->devfn) == 0x03) */
+		 /* 40:01.1 */  (dev->bus->number == 0x40 && PCI_SLOT(dev->devfn) == 0x01) ||
+                 /* 80:03.1 */  (dev->bus->number == 0x80 && PCI_SLOT(dev->devfn) == 0x03)
 	       );
 }
 
