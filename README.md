@@ -1,8 +1,8 @@
 # Kernel flags not enough to get rebar working - *machine specific fix*
-# root windows 80:03.1 needs 240M unless AST VGA is removed or replace a GPU with a NIC on the root complex, others need 228M
-# NP freed by removing BMC VGA (AST) (20MB), SATA AHCI and USB: ASM1042A + AMD xHCI (4MB) and Switchtec mgmt functions
+## root windows 80:03.1 needs 240M unless AST VGA is removed or replace a GPU with a NIC on the root complex, others need 228M
+## NP freed by removing BMC VGA (AST) (20MB), SATA AHCI and USB: ASM1042A + AMD xHCI (4MB) and Switchtec mgmt functions
 
-# NP/PF Bridge Memory
+## NP/PF Bridge Memory
 ```
 lspci -vv -s 00:03.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -vv -s 40:01.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
@@ -12,7 +12,7 @@ lspci -tv
 lspci -vv | grep -iE -B8 'Memory behind bridge|Prefetchable memory behind bridge'
 ```
 
-# Kernel source build
+## Kernel source build
 ```
 sudo apt-get install -y build-essential bc flex bison libssl-dev libelf-dev dwarves pahole libncurses-dev pkg-config
 git clone https://github.com/ec-jt/linux-6.9-g292-z20.git
@@ -35,7 +35,7 @@ sudo cp .config /boot/config-6.9.0
 sudo update-initramfs -c -k 6.9.0
 ```
 
-# update /etc/default/grub with kernel flags https://docs.kernel.org/admin-guide/kernel-parameters.html
+## update /etc/default/grub with kernel flags https://docs.kernel.org/admin-guide/kernel-parameters.html
 ```
 GRUB_CMDLINE_LINUX_DEFAULT="pcie_aspm=off intel_iommu=off amd_iommu=off video=efifb:off modprobe.blacklist=ast loglevel=7 \
 pcie_ports=native pci=use_crs,realloc=on,assign-busses,big_root_window,hpmmiosize=0"
@@ -47,7 +47,7 @@ sudo update-grub
 sudo reboot -f
 ```
 
-# rebuild/install nvidia kernel
+## rebuild/install nvidia kernel
 ```
 git clone https://github.com/ec-jt/open-gpu-kernel-modules
 cd open-gpu-kernel-modules
@@ -58,7 +58,7 @@ nvidia-smi topo -m
 ```
 
 
-# debug build errors
+## debug build errors
 ```
 make menuconfig
 make cleanoldconfig 2>/dev/null || true 
@@ -66,7 +66,7 @@ make -j1 V=1 2>&1 | tee build.log
 ```
 
 # Change notes
-# patched drivers/pci/quirks.c for bar 1 firmware and free NP memory space
+## patched drivers/pci/quirks.c for bar 1 firmware and free NP memory space
 ```
 /* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) so bridge sizing sees it */
 static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
@@ -218,7 +218,7 @@ static void quirk_force_hotplug_amd_gpp(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_GPP_ROOT_PORT, quirk_force_hotplug_amd_gpp);
 ```
 
-# patched drivers/pci/setup-bus.c force bar 0 allocation
+## patched drivers/pci/setup-bus.c force bar 0 allocation
 ```
 /* Lab override: force a fixed non-prefetchable MEM window on 0000:c0:01.1 */
 static inline bool bridge_is_c0_01_1(struct pci_dev *dev)
