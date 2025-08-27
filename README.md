@@ -3,14 +3,17 @@
 # NP freed by removing BMC VGA (AST) (20MB), SATA AHCI and USB: ASM1042A + AMD xHCI (4MB) and Switchtec mgmt functions
 
 # NP/PF Bridge Memory
+```
 lspci -vv -s 00:03.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -vv -s 40:01.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -vv -s 80:03.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -vv -s c0:01.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -tv
 lspci -vv | grep -iE -B8 'Memory behind bridge|Prefetchable memory behind bridge'
+```
 
 # Kernel source build
+```
 sudo apt-get install -y build-essential bc flex bison libssl-dev libelf-dev dwarves pahole libncurses-dev pkg-config
 git clone https://github.com/ec-jt/linux-6.9-g292-z20.git
 cd linux-6.9-g292-z20
@@ -30,30 +33,41 @@ sudo cp arch/x86/boot/bzImage /boot/vmlinuz-6.9.0
 sudo cp System.map /boot/System.map-6.9.0
 sudo cp .config /boot/config-6.9.0
 sudo update-initramfs -c -k 6.9.0
+```
 
 # update /etc/default/grub with kernel flags https://docs.kernel.org/admin-guide/kernel-parameters.html
+```
 GRUB_CMDLINE_LINUX_DEFAULT="pcie_aspm=off intel_iommu=off amd_iommu=off video=efifb:off modprobe.blacklist=ast loglevel=7 \
 pcie_ports=native pci=use_crs,realloc=on,assign-busses,big_root_window,hpmmiosize=0"
+```
+```
 echo 'blacklist snd_hda_intel' | sudo tee /etc/modprobe.d/blacklist-nvidia-hda.conf
 echo 'blacklist snd_hda_codec_hdmi' | sudo tee /etc/modprobe.d/blacklist-nvidia-hda.conf
 sudo update-grub
 sudo reboot -f
+```
 
 # rebuild/install nvidia kernel
+```
 git clone https://github.com/ec-jt/open-gpu-kernel-modules
 cd open-gpu-kernel-modules
 git checkout 570.148.08-p2p
 ./install.sh
 nvidia-smi topo -p2p r
 nvidia-smi topo -m
+```
 
-#debug build errors
-#make menuconfig
-#make cleanoldconfig 2>/dev/null || true 
-#make -j1 V=1 2>&1 | tee build.log
+
+# debug build errors
+```
+make menuconfig
+make cleanoldconfig 2>/dev/null || true 
+make -j1 V=1 2>&1 | tee build.log
+```
 
 # Change notes
 # patched drivers/pci/quirks.c for bar 1 firmware and free NP memory space
+```
 /* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) so bridge sizing sees it */
 static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 {
@@ -202,8 +216,10 @@ static void quirk_force_hotplug_amd_gpp(struct pci_dev *pdev)
  */
 #define PCI_DEVICE_ID_AMD_GPP_ROOT_PORT 0x1483
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_GPP_ROOT_PORT, quirk_force_hotplug_amd_gpp);
+```
 
 # patched drivers/pci/setup-bus.c force bar 0 allocation
+```
 /* Lab override: force a fixed non-prefetchable MEM window on 0000:c0:01.1 */
 static inline bool bridge_is_c0_01_1(struct pci_dev *dev)
 {
@@ -542,3 +558,4 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
                 mmio_pref.start += mmio_pref.end + 1;
         }
 }
+```
