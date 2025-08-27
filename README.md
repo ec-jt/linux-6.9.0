@@ -15,8 +15,8 @@ lspci -vv | grep -iE -B8 'Memory behind bridge|Prefetchable memory behind bridge
 ## Kernel source build
 ```
 sudo apt-get install -y build-essential bc flex bison libssl-dev libelf-dev dwarves pahole libncurses-dev pkg-config
-git clone https://github.com/ec-jt/linux-6.9-g292-z20.git
-cd linux-6.9-g292-z20
+git clone https://github.com/ec-jt/linux-6.9.0.git
+cd linux-6.9
 #config, change max GPU count or peer-to-peer transfer support
 cp -v /boot/config-$(uname -r) .config
 yes "" | make olddefconfig
