@@ -1,8 +1,8 @@
-#Kernel flags not enough to get rebar working - *machine specific fix*
-#root windows 80:03.1 needs 240M unless AST VGA is removed or replace a GPU with a NIC on the root complex, others need 228M
-#NP freed by removing BMC VGA (AST) (20MB), SATA AHCI and USB: ASM1042A + AMD xHCI (4MB) and Switchtec mgmt functions
+# Kernel flags not enough to get rebar working - *machine specific fix*
+# root windows 80:03.1 needs 240M unless AST VGA is removed or replace a GPU with a NIC on the root complex, others need 228M
+# NP freed by removing BMC VGA (AST) (20MB), SATA AHCI and USB: ASM1042A + AMD xHCI (4MB) and Switchtec mgmt functions
 
-#NP/PF Bridge Memory
+# NP/PF Bridge Memory
 lspci -vv -s 00:03.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -vv -s 40:01.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -vv -s 80:03.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
@@ -10,7 +10,7 @@ lspci -vv -s c0:01.1 | egrep -i 'Memory behind bridge|Prefetchable' -B8 -A5
 lspci -tv
 lspci -vv | grep -iE -B8 'Memory behind bridge|Prefetchable memory behind bridge'
 
-#Kernel source build
+# Kernel source build
 sudo apt-get install -y build-essential bc flex bison libssl-dev libelf-dev dwarves pahole libncurses-dev pkg-config
 git clone https://github.com/ec-jt/linux-6.9-g292-z20.git
 cd linux-6.9-g292-z20
@@ -31,7 +31,7 @@ sudo cp System.map /boot/System.map-6.9.0
 sudo cp .config /boot/config-6.9.0
 sudo update-initramfs -c -k 6.9.0
 
-#update /etc/default/grub with kernel flags https://docs.kernel.org/admin-guide/kernel-parameters.html
+# update /etc/default/grub with kernel flags https://docs.kernel.org/admin-guide/kernel-parameters.html
 GRUB_CMDLINE_LINUX_DEFAULT="pcie_aspm=off intel_iommu=off amd_iommu=off video=efifb:off modprobe.blacklist=ast loglevel=7 \
 pcie_ports=native pci=use_crs,realloc=on,assign-busses,big_root_window,hpmmiosize=0"
 echo 'blacklist snd_hda_intel' | sudo tee /etc/modprobe.d/blacklist-nvidia-hda.conf
@@ -39,7 +39,7 @@ echo 'blacklist snd_hda_codec_hdmi' | sudo tee /etc/modprobe.d/blacklist-nvidia-
 sudo update-grub
 sudo reboot -f
 
-#rebuild/install nvidia kernel
+# rebuild/install nvidia kernel
 git clone https://github.com/ec-jt/open-gpu-kernel-modules
 cd open-gpu-kernel-modules
 git checkout 570.148.08-p2p
