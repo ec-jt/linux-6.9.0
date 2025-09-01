@@ -228,15 +228,15 @@ static bool lab_np_target(struct pci_dev *d)
 		lab_bdf(d,0,0x84,0x00,0x00) ||
 		/* USB: ASM1042A + AMD xHCI */
 		lab_bdf(d,0,0x81,0x00,0x00) ||
-		lab_bdf(d,0,0x07,0x00,0x03) ||
-		lab_bdf(d,0,0x4a,0x00,0x03) ||
+		lab_bdf(d,0,0x06,0x00,0x03) ||
+		lab_bdf(d,0,0x46,0x00,0x03) ||
 		/* Switchtec mgmt functions */
-                lab_bdf(d,0,0x02,0x00,0x01) ||
+                lab_bdf(d,0,0x01,0x00,0x01) ||
 		lab_bdf(d,0,0x41,0x00,0x01) ||
-		lab_bdf(d,0,0x86,0,0x01)   ||
+		lab_bdf(d,0,0x87,0,0x01)   ||
 		lab_bdf(d,0,0xc1,0,0x01)   ||
                 /* SATA AHCI */
-                lab_bdf(d,0,0x8c,0x00,0x00);
+                lab_bdf(d,0,0x8d,0x00,0x00);
 }
 
 /* EARLY: turn off decode and zero BAR registers so pci_read_bases sees 0 */
@@ -288,7 +288,7 @@ static void quirk_lab_free_np_header(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_lab_free_np_header);
 /* ==== end LAB NP budget freer ==== */
 
-/* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) so bridge sizing sees it */
+/* Pre-size ReBAR for NVIDIA AD102 (RTX 4090) so bridge sizing sees it */
 static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 {
 	int bar = 1;               /* NVIDIA FB aperture */
@@ -317,8 +317,8 @@ static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 	if (!pci_rebar_set_size(dev, bar, idx))
 		pci_info(dev, "Pre-sized ReBAR on BAR%d to index %d\n", bar, idx);
 }
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2b85, quirk_presize_rebar_nvidia_gb202);
-DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2b85, quirk_presize_rebar_nvidia_gb202);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, quirk_presize_rebar_nvidia_gb202);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, quirk_presize_rebar_nvidia_gb202);
 
 /*
  * Force selected AMD GPP Root Ports to be treated as hot-plug bridges

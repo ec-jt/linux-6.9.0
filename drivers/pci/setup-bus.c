@@ -1135,7 +1135,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
         if (bus->self &&
             bridge_is_c0_01_1(bus->self) &&
             b_res == &bus->self->resource[PCI_BRIDGE_MEM_WINDOW]) {
-                resource_size_t forced = 228ULL << 20; /* 228 MiB, 1 MiB granularity */
+                resource_size_t forced = 96ULL << 20; /* 228 MiB, 1 MiB granularity */
                 size0 = forced;
                 size1 = forced;           /* no add_size path */
                 add_size = 0;
