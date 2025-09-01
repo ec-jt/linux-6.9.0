@@ -1135,13 +1135,20 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
         if (bus->self &&
             bridge_is_c0_01_1(bus->self) &&
             b_res == &bus->self->resource[PCI_BRIDGE_MEM_WINDOW]) {
-                resource_size_t forced = 228ULL << 20; /* 228 MiB, 1 MiB granularity */
+                /* 4xgpu setup */
+                resource_size_t floor_np = 100ULL << 20;
+                if (size0 < floor_np) size0 = floor_np;
+                if (size1 < floor_np) size1 = floor_np;
+                pci_info(bus->self, "NP window floor %llu MiB; sized %llu/%llu MiB\n", (unsigned long long)(floor_np >> 20), (unsigned long long)(size0    >> 20), (unsigned long long)(size1    >> 20));
+                /* 8xgpu setup */
+                /*
+                resource_size_t forced = 228ULL << 20;
                 size0 = forced;
-                size1 = forced;           /* no add_size path */
+                size1 = forced;
                 add_size = 0;
                 children_add_size = 0;
-                pci_info(bus->self, "forcing non-prefetchable MEM window to %pa (%llu MiB)\n",
-                         &forced, (unsigned long long)(forced >> 20));
+                pci_info(bus->self, "forcing non-prefetchable MEM window to %pa (%llu MiB)\n", &forced, (unsigned long long)(forced >> 20));
+                */
         }
 
 	if (!size0 && !size1) {
@@ -1929,12 +1936,14 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 */
 	adjust_bridge_window(bridge, io_res, add_list, resource_size(&io));
         /* Lab override: don't shrink the non-prefetchable MEM window on 0000:c0:01.1 */
+        /*
         if (!bridge_is_c0_01_1(bridge)) {
                 adjust_bridge_window(bridge, mmio_res, add_list,
                                      resource_size(&mmio));
         }
-	adjust_bridge_window(bridge, mmio_pref_res, add_list,
-			     resource_size(&mmio_pref));
+        */
+        adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
+	adjust_bridge_window(bridge, mmio_pref_res, add_list, resource_size(&mmio_pref));
 
 	/*
 	 * Calculate how many hotplug bridges and normal bridges there
