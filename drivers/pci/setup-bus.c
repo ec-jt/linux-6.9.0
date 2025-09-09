@@ -19,6 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/dmi.h>
+#include <linux/pci_ids.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/cache.h>
@@ -973,8 +975,10 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
 }
 
 /* Lab override: force a fixed non-prefetchable MEM window on 0000:c0:01.1 */
+/*
 static inline bool bridge_is_c0_01_1(struct pci_dev *dev)
 {
+*/
 	/* domain 0, bus c0, dev 01, fn 1 */
 /*	return dev &&
 	       pci_domain_nr(dev->bus) == 0 &&
@@ -990,15 +994,49 @@ static inline bool bridge_is_c0_01_1(struct pci_dev *dev)
 	       PCI_SLOT(dev->devfn) == 0x01 &&
 	       PCI_FUNC(dev->devfn) == 0x01;
 */
+/*
 	return dev &&
 	       pci_domain_nr(dev->bus) == 0 &&
 	       PCI_FUNC(dev->devfn) == 0x01 &&
 	       (
-                 /* c0:01.1 */  (dev->bus->number == 0xc0 && PCI_SLOT(dev->devfn) == 0x01) ||
-		 /* 00:03.1 */  (dev->bus->number == 0x00 && PCI_SLOT(dev->devfn) == 0x03) ||
-		 /* 40:01.1 */  (dev->bus->number == 0x40 && PCI_SLOT(dev->devfn) == 0x01) ||
-                 /* 80:03.1 */  (dev->bus->number == 0x80 && PCI_SLOT(dev->devfn) == 0x03)
+                   (dev->bus->number == 0xc0 && PCI_SLOT(dev->devfn) == 0x01) ||
+		   (dev->bus->number == 0x00 && PCI_SLOT(dev->devfn) == 0x03) ||
+		   (dev->bus->number == 0x40 && PCI_SLOT(dev->devfn) == 0x01) ||
+                   (dev->bus->number == 0x80 && PCI_SLOT(dev->devfn) == 0x03)
 	       );
+}
+*/
+/* Lab: identify target bridges w/o relying on BDF.
+ * Gating:
+ *  - Platform DMI: Gigabyte board
+ *  - PCIe Root Port
+ *  - AMD Starship/Matisse GPP Root Port (device 0x1483)
+ */
+static bool lab_platform_ok(void)
+{
+#ifdef CONFIG_DMI
+    static const struct dmi_system_id lab_dmi[] = {
+        { .matches = { DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"), } },
+        { }
+    };
+    return dmi_check_system(lab_dmi);
+#else
+    return true;
+#endif
+}
+static inline bool lab_bridge_target(struct pci_dev *dev)
+{
+    if (!dev)
+        return false;
+    if (!lab_platform_ok())
+        return false;
+    if (!pci_is_pcie(dev))
+        return false;
+    if (pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
+        return false;
+
+    /* AMD Starship/Matisse GPP Root Port */
+    return (dev->vendor == PCI_VENDOR_ID_AMD && dev->device == 0x1483);
 }
 
 /**
@@ -1039,10 +1077,10 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	if (!b_res)
 		return -ENOSPC;
 
-        /* Lab override: if 0000:c0:01.1 non-prefetchable MEM window is
+        /* Lab override: if lab target non-prefetchable MEM window is
          * already programmed by firmware, release it so we can re-size it. */
         if (bus->self &&
-            bridge_is_c0_01_1(bus->self) &&
+            lab_bridge_target(bus->self) &&
             b_res == &bus->self->resource[PCI_BRIDGE_MEM_WINDOW] &&
             b_res->parent) {
             pci_info(bus->self,
@@ -1129,26 +1167,17 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		calculate_memsize(size, min_size, add_size, children_add_size,
 				resource_size(b_res), add_align);
         /*
-         * Lab override: for 0000:c0:01.1 force the non-prefetchable MEM window
-         * to an exact 240 MiB dont rely on hotplug sizing.
+         * Lab override: for lab target force the non-prefetchable MEM window
+         * to 96MB to 240 MiB dont rely on hotplug sizing.
          */
         if (bus->self &&
-            bridge_is_c0_01_1(bus->self) &&
+            lab_bridge_target(bus->self) &&
             b_res == &bus->self->resource[PCI_BRIDGE_MEM_WINDOW]) {
-                /* 4xgpu setup */
-                resource_size_t floor_np = 100ULL << 20;
+                /* 4-8xgpu setup */
+                resource_size_t floor_np = 96ULL << 20;
                 if (size0 < floor_np) size0 = floor_np;
                 if (size1 < floor_np) size1 = floor_np;
                 pci_info(bus->self, "NP window floor %llu MiB; sized %llu/%llu MiB\n", (unsigned long long)(floor_np >> 20), (unsigned long long)(size0    >> 20), (unsigned long long)(size1    >> 20));
-                /* 8xgpu setup */
-                /*
-                resource_size_t forced = 228ULL << 20;
-                size0 = forced;
-                size1 = forced;
-                add_size = 0;
-                children_add_size = 0;
-                pci_info(bus->self, "forcing non-prefetchable MEM window to %pa (%llu MiB)\n", &forced, (unsigned long long)(forced >> 20));
-                */
         }
 
 	if (!size0 && !size1) {
