@@ -386,41 +386,37 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, quirk_presize_rebar
  * so that the hot-plug sizing headroom (hpmmiosize/hpprefmemsize/hpbussize)
  * is applied even if the port doesn't advertise HotPlug capability.
  */
+/*
 static bool quirk_match_bdf(struct pci_dev *pdev, u8 bus, u8 dev, u8 func)
 {
 	return pdev->bus->number == bus &&
 	       PCI_SLOT(pdev->devfn) == dev &&
 	       PCI_FUNC(pdev->devfn) == func;
 }
-
+/*
+/*
+* Ports to force as hot-plug bridges (example from the logs):
+*   00:03.1, 40:01.1, 80:03.1
+* Edit/add lines as needed (domain assumed 0000:).
+*/
+/*
 static void quirk_force_hotplug_amd_gpp(struct pci_dev *pdev)
 {
-	/* Only touch AMD PCIe Root Ports */
 	if (!pci_is_pcie(pdev))
 		return;
 	if (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT)
 		return;
 
-	/*
-	 * Ports to force as hot-plug bridges (example from the logs):
-	 *   00:03.1, 40:01.1, 80:03.1
-	 * Edit/add lines as needed (domain assumed 0000:).
-	 */
-        if (quirk_match_bdf(pdev, 0x00, 0x03, 0x01) ||   /* 0000:00:03.1 */
-	    quirk_match_bdf(pdev, 0x40, 0x01, 0x01) ||   /* 0000:40:01.1 */
-	    quirk_match_bdf(pdev, 0x80, 0x03, 0x01)) {   /* 0000:80:03.1 */
+        if (quirk_match_bdf(pdev, 0x00, 0x03, 0x01) ||
+	    quirk_match_bdf(pdev, 0x40, 0x01, 0x01) ||
+	    quirk_match_bdf(pdev, 0x80, 0x03, 0x01)) {
 		pdev->is_hotplug_bridge = true;
 		pci_info(pdev, "forcing hot-plug bridge (lab quirk) for sizing\n");
 	}
 }
-
-/*
- * Starship/Matisse GPP Root Port
- * (We gate inside the function on BDF so we don't flip every 1483.)
- */
 #define PCI_DEVICE_ID_AMD_GPP_ROOT_PORT 0x1483
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_GPP_ROOT_PORT, quirk_force_hotplug_amd_gpp);
-
+*/
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
