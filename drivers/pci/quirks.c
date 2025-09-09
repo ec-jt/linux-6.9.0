@@ -288,7 +288,7 @@ static void quirk_lab_free_np_header(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_lab_free_np_header);
 /* ==== end LAB NP budget freer ==== */
 
-/* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) so bridge sizing sees it */
+/* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) and NVIDIA AD102 (RTX 4090) so bridge sizing sees it */
 static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 {
 	int bar = 1;               /* NVIDIA FB aperture */
@@ -319,7 +319,8 @@ static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2b85, quirk_presize_rebar_nvidia_gb202);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2b85, quirk_presize_rebar_nvidia_gb202);
-
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, quirk_presize_rebar_nvidia_gb202);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, quirk_presize_rebar_nvidia_gb202);
 /*
  * Force selected AMD GPP Root Ports to be treated as hot-plug bridges
  * so that the hot-plug sizing headroom (hpmmiosize/hpprefmemsize/hpbussize)
