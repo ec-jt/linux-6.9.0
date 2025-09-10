@@ -1025,18 +1025,6 @@ static bool lab_platform_ok(void)
 #endif
 }
 /* Depth-first scans of a bus subtree for a given class or vendor:device */
-static bool bus_has_class_mask(struct pci_bus *bus, u32 class_mask, u32 class_val)
-{
-    struct pci_dev *d;
-    list_for_each_entry(d, &bus->devices, bus_list) {
-        if (((d->class >> 8) & class_mask) == class_val)
-            return true;
-        if (d->subordinate && bus_has_class_mask(d->subordinate, class_mask, class_val))
-            return true;
-    }
-    return false;
-}
-
 static bool bus_has_vendor_device(struct pci_bus *bus, u16 vendor, u16 device)
 {
     struct pci_dev *d;
