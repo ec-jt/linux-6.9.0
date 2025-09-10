@@ -1983,9 +1983,10 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
                                      resource_size(&mmio));
         }
         */
-        adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
-        /* Optional: grow but never shrink */
         /*
+        adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
+        */
+        /* Optional: grow but never shrink */
         if (!lab_bridge_target(bridge)) {
             adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
         } else {
@@ -1994,7 +1995,6 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
             if (want > cur)
                 adjust_bridge_window(bridge, mmio_res, add_list, want);
         }
-        */
 
 	adjust_bridge_window(bridge, mmio_pref_res, add_list, resource_size(&mmio_pref));
 
