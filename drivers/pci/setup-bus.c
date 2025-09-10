@@ -1021,24 +1021,48 @@ static bool lab_platform_ok(void)
     };
     return dmi_check_system(lab_dmi);
 #else
-    return true;
+    return false; /* safer default */
 #endif
 }
-static inline bool lab_bridge_target(struct pci_dev *dev)
+/* Depth-first scans of a bus subtree for a given class or vendor:device */
+static bool bus_has_class_mask(struct pci_bus *bus, u32 class_mask, u32 class_val)
 {
-    if (!dev)
-        return false;
-    if (!lab_platform_ok())
-        return false;
-    if (!pci_is_pcie(dev))
-        return false;
-    if (pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
-        return false;
-
-    /* AMD Starship/Matisse GPP Root Port */
-    return (dev->vendor == PCI_VENDOR_ID_AMD && dev->device == 0x1483);
+    struct pci_dev *d;
+    list_for_each_entry(d, &bus->devices, bus_list) {
+        if (((d->class >> 8) & class_mask) == class_val)
+            return true;
+        if (d->subordinate && bus_has_class_mask(d->subordinate, class_mask, class_val))
+            return true;
+    }
+    return false;
 }
 
+static bool bus_has_vendor_device(struct pci_bus *bus, u16 vendor, u16 device)
+{
+    struct pci_dev *d;
+    list_for_each_entry(d, &bus->devices, bus_list) {
+        if (d->vendor == vendor && d->device == device)
+            return true;
+        if (d->subordinate && bus_has_vendor_device(d->subordinate, vendor, device))
+            return true;
+    }
+    return false;
+}
+/* Target only AMD GPP RPs that front GPU/Switchtec fabric */
+static inline bool lab_bridge_target(struct pci_dev *dev)
+{
+    if (!dev) return false;                 /* safety */
+    if (!lab_platform_ok()) return false;   /* DMI_SYS_VENDOR == GIGABYTE */
+    if (!dev->subordinate) return false;    /* check to scan the subtree */
+    /* must have Switchtec mgmt (11f8:4052) somewhere below */
+    if (!bus_has_vendor_device(dev->subordinate, PCI_VENDOR_ID_MICROSEMI, 0x4052))
+        return false;
+
+    pci_info(dev, "LAB: targeting bridge %04x:%02x:%02x.%d (Switchtec subtree)\n",
+             pci_domain_nr(dev->bus), dev->bus->number,
+             PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
+    return true;
+}
 /**
  * pbus_size_mem() - Size the memory window of a given bus
  *
@@ -1972,6 +1996,18 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
         }
         */
         adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
+        /* Optional: grow but never shrink */
+        /*
+        if (!lab_bridge_target(bridge)) {
+            adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
+        } else {
+            resource_size_t cur = resource_size(mmio_res);
+            resource_size_t want = resource_size(&mmio);
+            if (want > cur)
+                adjust_bridge_window(bridge, mmio_res, add_list, want);
+        }
+        */
+
 	adjust_bridge_window(bridge, mmio_pref_res, add_list, resource_size(&mmio_pref));
 
 	/*
