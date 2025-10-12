@@ -351,6 +351,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_lab_free_np_header);
 /* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) and NVIDIA AD102 (RTX 4090) so bridge sizing sees it
  * RTX 4090 0x2684 -> RTX 6000 Ada 0x26b1
  * RTX 5090 0x2b85 -> RTX PRO 6000 0x2bb1
+ * lspci -nn -s 16:00.0
  */
 static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 {
