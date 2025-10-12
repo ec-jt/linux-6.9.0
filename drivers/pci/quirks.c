@@ -348,11 +348,24 @@ static void quirk_lab_free_np_header(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_lab_free_np_header);
 /* ==== end LAB NP budget freer ==== */
 
-/* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) and NVIDIA AD102 (RTX 4090) so bridge sizing sees it
+/* Spoof test device lspci -nn -s 16:00.0 TEST RTX4090
  * RTX 4090 0x2684 -> RTX 6000 Ada 0x26b1
  * RTX 5090 0x2b85 -> RTX PRO 6000 0x2bb1
- * lspci -nn -s 16:00.0
  */
+static void pci_quirk_override_nvidia_device(struct pci_dev *dev)
+{
+    /* Override RTX 4090 (AD102) to match your actual RTX 6000 Ada */
+    if (dev->vendor == 0x10DE && dev->device == 0x2684) {
+        dev->device = 0x26B1; /* Spoof as YOUR RTX 6000 Ada */
+        dev->subsystem_device = 0x16A1; /* Match your HP subsystem */
+        dev->subsystem_vendor = 0x103C; /* HP vendor ID */
+        pci_info(dev, "Overridden device ID to 0x26B1 (RTX 6000 Ada) for RTX 4090\n");
+    }
+}
+/* Use EARLY fixup to beat NVIDIA driver load */
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, pci_quirk_override_nvidia_device);
+
+/* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) and NVIDIA AD102 (RTX 4090) so bridge sizing sees it */
 static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 {
 	int bar = 1;               /* NVIDIA FB aperture */
