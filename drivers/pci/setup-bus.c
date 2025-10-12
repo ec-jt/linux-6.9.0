@@ -19,6 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/dmi.h>
+#include <linux/pci_ids.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/cache.h>
@@ -973,8 +975,10 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
 }
 
 /* Lab override: force a fixed non-prefetchable MEM window on 0000:c0:01.1 */
+/*
 static inline bool bridge_is_c0_01_1(struct pci_dev *dev)
 {
+*/
 	/* domain 0, bus c0, dev 01, fn 1 */
 /*	return dev &&
 	       pci_domain_nr(dev->bus) == 0 &&
@@ -990,17 +994,63 @@ static inline bool bridge_is_c0_01_1(struct pci_dev *dev)
 	       PCI_SLOT(dev->devfn) == 0x01 &&
 	       PCI_FUNC(dev->devfn) == 0x01;
 */
+/*
 	return dev &&
 	       pci_domain_nr(dev->bus) == 0 &&
 	       PCI_FUNC(dev->devfn) == 0x01 &&
 	       (
-                 /* c0:01.1 */  (dev->bus->number == 0xc0 && PCI_SLOT(dev->devfn) == 0x01) ||
-		 /* 00:03.1 */  (dev->bus->number == 0x00 && PCI_SLOT(dev->devfn) == 0x03) ||
-		 /* 40:01.1 */  (dev->bus->number == 0x40 && PCI_SLOT(dev->devfn) == 0x01) ||
-                 /* 80:03.1 */  (dev->bus->number == 0x80 && PCI_SLOT(dev->devfn) == 0x03)
+                   (dev->bus->number == 0xc0 && PCI_SLOT(dev->devfn) == 0x01) ||
+		   (dev->bus->number == 0x00 && PCI_SLOT(dev->devfn) == 0x03) ||
+		   (dev->bus->number == 0x40 && PCI_SLOT(dev->devfn) == 0x01) ||
+                   (dev->bus->number == 0x80 && PCI_SLOT(dev->devfn) == 0x03)
 	       );
 }
+*/
+/* Lab: identify target bridges w/o relying on BDF.
+ * Gating:
+ *  - Platform DMI: Gigabyte board
+ *  - PCIe Root Port
+ *  - AMD Starship/Matisse GPP Root Port (device 0x1483)
+ */
+static bool lab_platform_ok(void)
+{
+#ifdef CONFIG_DMI
+    static const struct dmi_system_id lab_dmi[] = {
+        { .matches = { DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"), } },
+        { }
+    };
+    return dmi_check_system(lab_dmi);
+#else
+    return false; /* safer default */
+#endif
+}
+/* Depth-first scans of a bus subtree for a given class or vendor:device */
+static bool bus_has_vendor_device(struct pci_bus *bus, u16 vendor, u16 device)
+{
+    struct pci_dev *d;
+    list_for_each_entry(d, &bus->devices, bus_list) {
+        if (d->vendor == vendor && d->device == device)
+            return true;
+        if (d->subordinate && bus_has_vendor_device(d->subordinate, vendor, device))
+            return true;
+    }
+    return false;
+}
+/* Target only AMD GPP RPs that front GPU/Switchtec fabric */
+static inline bool lab_bridge_target(struct pci_dev *dev)
+{
+    if (!dev) return false;                 /* safety */
+    if (!lab_platform_ok()) return false;   /* DMI_SYS_VENDOR == GIGABYTE */
+    if (!dev->subordinate) return false;    /* check to scan the subtree */
+    /* must have Switchtec mgmt (11f8:4052) somewhere below */
+    if (!bus_has_vendor_device(dev->subordinate, PCI_VENDOR_ID_MICROSEMI, 0x4052))
+        return false;
 
+    pci_info(dev, "LAB: targeting bridge %04x:%02x:%02x.%d (Switchtec subtree)\n",
+             pci_domain_nr(dev->bus), dev->bus->number,
+             PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
+    return true;
+}
 /**
  * pbus_size_mem() - Size the memory window of a given bus
  *
@@ -1039,10 +1089,10 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	if (!b_res)
 		return -ENOSPC;
 
-        /* Lab override: if 0000:c0:01.1 non-prefetchable MEM window is
+        /* Lab override: if lab target non-prefetchable MEM window is
          * already programmed by firmware, release it so we can re-size it. */
         if (bus->self &&
-            bridge_is_c0_01_1(bus->self) &&
+            lab_bridge_target(bus->self) &&
             b_res == &bus->self->resource[PCI_BRIDGE_MEM_WINDOW] &&
             b_res->parent) {
             pci_info(bus->self,
@@ -1129,19 +1179,17 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		calculate_memsize(size, min_size, add_size, children_add_size,
 				resource_size(b_res), add_align);
         /*
-         * Lab override: for 0000:c0:01.1 force the non-prefetchable MEM window
-         * to an exact 240 MiB dont rely on hotplug sizing.
+         * Lab override: for lab target force the non-prefetchable MEM window
+         * to 96MB to 240 MiB dont rely on hotplug sizing.
          */
         if (bus->self &&
-            bridge_is_c0_01_1(bus->self) &&
+            lab_bridge_target(bus->self) &&
             b_res == &bus->self->resource[PCI_BRIDGE_MEM_WINDOW]) {
-                resource_size_t forced = 228ULL << 20; /* 228 MiB, 1 MiB granularity */
-                size0 = forced;
-                size1 = forced;           /* no add_size path */
-                add_size = 0;
-                children_add_size = 0;
-                pci_info(bus->self, "forcing non-prefetchable MEM window to %pa (%llu MiB)\n",
-                         &forced, (unsigned long long)(forced >> 20));
+                /* 4-8xgpu setup */
+                resource_size_t floor_np = 96ULL << 20;
+                if (size0 < floor_np) size0 = floor_np;
+                if (size1 < floor_np) size1 = floor_np;
+                pci_info(bus->self, "NP window floor %llu MiB; sized %llu/%llu MiB\n", (unsigned long long)(floor_np >> 20), (unsigned long long)(size0    >> 20), (unsigned long long)(size1    >> 20));
         }
 
 	if (!size0 && !size1) {
@@ -1929,12 +1977,26 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 */
 	adjust_bridge_window(bridge, io_res, add_list, resource_size(&io));
         /* Lab override: don't shrink the non-prefetchable MEM window on 0000:c0:01.1 */
+        /*
         if (!bridge_is_c0_01_1(bridge)) {
                 adjust_bridge_window(bridge, mmio_res, add_list,
                                      resource_size(&mmio));
         }
-	adjust_bridge_window(bridge, mmio_pref_res, add_list,
-			     resource_size(&mmio_pref));
+        */
+        /*
+        adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
+        */
+        /* Optional: grow but never shrink */
+        if (!lab_bridge_target(bridge)) {
+            adjust_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
+        } else {
+            resource_size_t cur = resource_size(mmio_res);
+            resource_size_t want = resource_size(&mmio);
+            if (want > cur)
+                adjust_bridge_window(bridge, mmio_res, add_list, want);
+        }
+
+	adjust_bridge_window(bridge, mmio_pref_res, add_list, resource_size(&mmio_pref));
 
 	/*
 	 * Calculate how many hotplug bridges and normal bridges there

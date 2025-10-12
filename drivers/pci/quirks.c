@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/pci.h>
+#include <linux/pci_ids.h>
 #include <linux/isa-dma.h> /* isa_dma_bridge_buggy */
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -211,7 +212,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD,       0x1484, quirk_seed_pmem);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MICROSEMI, 0x4052, quirk_seed_pmem);
 */
 
-/* ==== LAB: free 32-bit NP budget ASAP (EARLY + HEADER) ==== */
+/* ==== LAB: free 32-bit NP budget ASAP (EARLY + HEADER) ==== BDF hardcoded method */
+/*
 static bool lab_bdf(struct pci_dev *d, u8 seg, u8 bus, u8 slot, u8 func)
 {
 	return pci_domain_nr(d->bus) == seg &&
@@ -219,26 +221,84 @@ static bool lab_bdf(struct pci_dev *d, u8 seg, u8 bus, u8 slot, u8 func)
 	       PCI_SLOT(d->devfn) == slot &&
 	       PCI_FUNC(d->devfn) == func;
 }
+*/
+/* BMC VGA (AST) */                 /* USB: ASM1042A + AMD xHCI */                 /* Switchtec mgmt functions */                 /* SATA AHCI */
+/*
+static bool lab_np_target(struct pci_dev *d)
+{
+	return
+		lab_bdf(d,0,0x84,0x00,0x00) ||
+		lab_bdf(d,0,0x81,0x00,0x00) ||
+		lab_bdf(d,0,0x06,0x00,0x03) ||
+		lab_bdf(d,0,0x46,0x00,0x03) ||
+                lab_bdf(d,0,0x01,0x00,0x01) ||
+		lab_bdf(d,0,0x41,0x00,0x01) ||
+		lab_bdf(d,0,0x87,0,0x01)   ||
+		lab_bdf(d,0,0xc1,0,0x01)   ||
+                lab_bdf(d,0,0x8d,0x00,0x00);
+}
+*/
+/* ==== LAB: free 32-bit NP budget ASAP (EARLY + HEADER) ==== vendor/device/class filter method */
+/*
+ * Match table built from lspci -nnvv:
+ *
+ *  - ASM1042A xHCI          [1b21:1142]
+ *  - AMD xHCI               [1022:148c]   (class 0c0330)
+ *  - Switchtec mgmt (mem)   [11f8:4052]   (class 0580)
+ *  - AMD SATA AHCI          [1022:7901]   (class 0106)
+ *  - ASPEED BMC VGA         [1a03:2000]
+ *
+ * Plus one broad fallback for "any xHCI" by class in case ports move or
+ * a different xHCI shows up (safe to keep; remove if you want only exact).
+ */
+enum lab_dev_tag {
+    LAB_DEV_ANY = 0,
+    LAB_DEV_BMC_VGA_ASPEED,      /* 1a03:2000 */
+    LAB_DEV_USB_ASM1042A,        /* 1b21:1142 */
+    LAB_DEV_USB_XHCI_AMD,        /* 1022:148c */
+    LAB_DEV_SWITCHTEC_MGMT,      /* 11f8:4052 (class 0580) */
+    LAB_DEV_SATA_AHCI_AMD,       /* 1022:7901 (class 0106) */
+    LAB_DEV_USB_XHCI_ANY,        /* class 0c0330 (fallback) */
+};
+static const struct pci_device_id lab_match_tbl[] = {
+    /* BMC VGA (ASPEED) */
+    { PCI_DEVICE(0x1a03,   0x2000), .driver_data = LAB_DEV_BMC_VGA_ASPEED },
+
+    /* USB: ASMedia ASM1042A */
+    { PCI_DEVICE(PCI_VENDOR_ID_ASMEDIA,  0x1142), .driver_data = LAB_DEV_USB_ASM1042A },
+
+    /* USB: AMD xHCI (exact device) */
+    { PCI_DEVICE(PCI_VENDOR_ID_AMD,      0x148c), .driver_data = LAB_DEV_USB_XHCI_AMD },
+
+    /* Switchtec management function (Microchip/Microsemi) */
+    { PCI_DEVICE(PCI_VENDOR_ID_MICROSEMI,0x4052), .driver_data = LAB_DEV_SWITCHTEC_MGMT },
+    /* (Optional, more resilient) same vendor constrained by class 0580 (memory-other) */
+    { PCI_VENDOR_ID_MICROSEMI, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
+      (PCI_CLASS_MEMORY_OTHER << 8), 0xFFFF00, .driver_data = LAB_DEV_SWITCHTEC_MGMT },
+
+    /* SATA AHCI: AMD FCH (exact) */
+    { PCI_DEVICE(PCI_VENDOR_ID_AMD,      0x7901), .driver_data = LAB_DEV_SATA_AHCI_AMD },
+    /* (Optional) class-based AHCI fallback */
+    { PCI_DEVICE_CLASS((PCI_CLASS_STORAGE_SATA_AHCI << 8), ~0),
+      .driver_data = LAB_DEV_SATA_AHCI_AMD },
+
+    /* (Optional) any xHCI fallback by class if you want to catch all xHCI */
+    { PCI_DEVICE_CLASS((PCI_CLASS_SERIAL_USB_XHCI << 8), ~0),
+      .driver_data = LAB_DEV_USB_XHCI_ANY },
+
+    { 0, } /* terminator */
+};
 
 static bool lab_np_target(struct pci_dev *d)
 {
-	/* domain 0000: */
-	return
-		/* BMC VGA (AST) */
-		lab_bdf(d,0,0x84,0x00,0x00) ||
-		/* USB: ASM1042A + AMD xHCI */
-		lab_bdf(d,0,0x81,0x00,0x00) ||
-		lab_bdf(d,0,0x07,0x00,0x03) ||
-		lab_bdf(d,0,0x4a,0x00,0x03) ||
-		/* Switchtec mgmt functions */
-                lab_bdf(d,0,0x02,0x00,0x01) ||
-		lab_bdf(d,0,0x41,0x00,0x01) ||
-		lab_bdf(d,0,0x86,0,0x01)   ||
-		lab_bdf(d,0,0xc1,0,0x01)   ||
-                /* SATA AHCI */
-                lab_bdf(d,0,0x8c,0x00,0x00);
+    const struct pci_device_id *id = pci_match_id(lab_match_tbl, d);
+#if 1
+    if (id)
+        pci_info(d, "LAB: matched NP target (vendor=%04x device=%04x class=%06x tag=%lu)\n",
+                 d->vendor, d->device, d->class >> 8, id->driver_data);
+#endif
+    return id != NULL;
 }
-
 /* EARLY: turn off decode and zero BAR registers so pci_read_bases sees 0 */
 static void quirk_lab_free_np_early(struct pci_dev *dev)
 {
@@ -288,7 +348,7 @@ static void quirk_lab_free_np_header(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_lab_free_np_header);
 /* ==== end LAB NP budget freer ==== */
 
-/* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) so bridge sizing sees it */
+/* Pre-size ReBAR for NVIDIA GB202 (RTX 5090) and NVIDIA AD102 (RTX 4090) so bridge sizing sees it */
 static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 {
 	int bar = 1;               /* NVIDIA FB aperture */
@@ -319,47 +379,44 @@ static void quirk_presize_rebar_nvidia_gb202(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2b85, quirk_presize_rebar_nvidia_gb202);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2b85, quirk_presize_rebar_nvidia_gb202);
-
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, quirk_presize_rebar_nvidia_gb202);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, 0x2684, quirk_presize_rebar_nvidia_gb202);
 /*
  * Force selected AMD GPP Root Ports to be treated as hot-plug bridges
  * so that the hot-plug sizing headroom (hpmmiosize/hpprefmemsize/hpbussize)
  * is applied even if the port doesn't advertise HotPlug capability.
  */
+/*
 static bool quirk_match_bdf(struct pci_dev *pdev, u8 bus, u8 dev, u8 func)
 {
 	return pdev->bus->number == bus &&
 	       PCI_SLOT(pdev->devfn) == dev &&
 	       PCI_FUNC(pdev->devfn) == func;
 }
-
+/*
+/*
+* Ports to force as hot-plug bridges (example from the logs):
+*   00:03.1, 40:01.1, 80:03.1
+* Edit/add lines as needed (domain assumed 0000:).
+*/
+/*
 static void quirk_force_hotplug_amd_gpp(struct pci_dev *pdev)
 {
-	/* Only touch AMD PCIe Root Ports */
 	if (!pci_is_pcie(pdev))
 		return;
 	if (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT)
 		return;
 
-	/*
-	 * Ports to force as hot-plug bridges (example from the logs):
-	 *   00:03.1, 40:01.1, 80:03.1
-	 * Edit/add lines as needed (domain assumed 0000:).
-	 */
-        if (quirk_match_bdf(pdev, 0x00, 0x03, 0x01) ||   /* 0000:00:03.1 */
-	    quirk_match_bdf(pdev, 0x40, 0x01, 0x01) ||   /* 0000:40:01.1 */
-	    quirk_match_bdf(pdev, 0x80, 0x03, 0x01)) {   /* 0000:80:03.1 */
+        if (quirk_match_bdf(pdev, 0x00, 0x03, 0x01) ||
+	    quirk_match_bdf(pdev, 0x40, 0x01, 0x01) ||
+	    quirk_match_bdf(pdev, 0x80, 0x03, 0x01)) {
 		pdev->is_hotplug_bridge = true;
 		pci_info(pdev, "forcing hot-plug bridge (lab quirk) for sizing\n");
 	}
 }
-
-/*
- * Starship/Matisse GPP Root Port
- * (We gate inside the function on BDF so we don't flip every 1483.)
- */
 #define PCI_DEVICE_ID_AMD_GPP_ROOT_PORT 0x1483
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_GPP_ROOT_PORT, quirk_force_hotplug_amd_gpp);
-
+*/
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
