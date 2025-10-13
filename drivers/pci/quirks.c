@@ -356,10 +356,16 @@ static void pci_quirk_override_nvidia_device(struct pci_dev *dev)
 {
     /* Override RTX 4090 (AD102) to match your actual RTX 6000 Ada */
     if (dev->vendor == 0x10DE && dev->device == 0x2684) {
-        dev->device = 0x26B1; /* Spoof as YOUR RTX 6000 Ada */
-        dev->subsystem_device = 0x16A1; /* Match your HP subsystem */
-        dev->subsystem_vendor = 0x103C; /* HP vendor ID */
-        pci_info(dev, "Overridden device ID to 0x26B1 (RTX 6000 Ada) for RTX 4090\n");
+        /* Write to actual PCI config space */
+        pci_write_config_word(dev, PCI_SUBSYSTEM_VENDOR_ID, 0x103C);
+        pci_write_config_word(dev, PCI_SUBSYSTEM_ID, 0x16A1);
+        
+        /* Update kernel structure */
+        dev->device = 0x26B1;
+        dev->subsystem_vendor = 0x103C;
+        dev->subsystem_device = 0x16A1;
+        
+        pci_info(dev, "HARDWARE: Wrote subsystem 103c:16a1 to PCI config space\n");
     }
 }
 /* Use EARLY fixup to beat NVIDIA driver load */
