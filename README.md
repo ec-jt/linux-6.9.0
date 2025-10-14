@@ -51,22 +51,22 @@ sudo update-grub
 sudo reboot -f
 ```
 
-### rebuild/install nvidia kernel
+### rebuild/install nvidia kernel (temp hide peermem until ofa fixed)
 ```
 git clone https://github.com/ec-jt/open-gpu-kernel-modules
 cd open-gpu-kernel-modules
 git checkout 570.148.08-p2p
+mv kernel-open/nvidia-peermem kernel-open/nvidia-peermem.disabled
 ./install.sh
+mv kernel-open/nvidia-peermem.disabled kernel-open/nvidia-peermem
 nvidia-smi topo -p2p r
 nvidia-smi topo -m
 ```
 
-### temp hide peermem ofa 
+### ofa build (WIP)
 ```
-cd ~/open-gpu-kernel-modules
-mv kernel-open/nvidia-peermem kernel-open/nvidia-peermem.disabled
-./install.sh
-mv kernel-open/nvidia-peermem.disabled kernel-open/nvidia-peermem
+sudo ./mlnxofedinstall --force --kernel $(make kernelrelease) --add-kernel-support
+sudo /etc/init.d/openibd restart || true
 ```
 
 ### debug build errors
