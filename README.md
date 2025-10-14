@@ -28,6 +28,7 @@ scripts/config --enable PCI_QUIRKS
 scripts/config --enable PCI_RESIZABLE_BAR
 sudo make olddefconfig
 sudo make -j"$(nproc)"
+sudo make modules_prepare
 sudo make modules_install install
 sudo cp arch/x86/boot/bzImage /boot/vmlinuz-6.9.0
 sudo cp System.map /boot/System.map-6.9.0
