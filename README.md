@@ -61,6 +61,13 @@ nvidia-smi topo -p2p r
 nvidia-smi topo -m
 ```
 
+### temp hide peermem ofa 
+```
+cd ~/open-gpu-kernel-modules
+mv kernel-open/nvidia-peermem kernel-open/nvidia-peermem.disabled
+./install.sh
+mv kernel-open/nvidia-peermem.disabled kernel-open/nvidia-peermem
+```
 
 ### debug build errors
 ```
