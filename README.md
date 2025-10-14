@@ -28,12 +28,14 @@ scripts/config --enable PCI_QUIRKS
 scripts/config --enable PCI_RESIZABLE_BAR
 sudo make olddefconfig
 sudo make -j"$(nproc)"
+sudo make kernelrelease
 sudo make modules_prepare
 sudo make modules_install install
-sudo cp arch/x86/boot/bzImage /boot/vmlinuz-6.9.0
-sudo cp System.map /boot/System.map-6.9.0
-sudo cp .config /boot/config-6.9.0
-sudo update-initramfs -c -k 6.9.0
+sudo cp arch/x86/boot/bzImage /boot/vmlinuz-6.9.0+
+sudo cp System.map /boot/System.map-6.9.0+
+sudo cp .config /boot/config-6.9.0+
+sudo depmod 6.9.0+
+sudo update-initramfs -c -k 6.9.0+
 ```
 
 ### update /etc/default/grub with kernel flags https://docs.kernel.org/admin-guide/kernel-parameters.html
