@@ -53,6 +53,15 @@ sudo reboot -f
 
 ### rebuild/install nvidia kernel (temp hide peermem until ofa fixed)
 ```
+git clone https://github.com/aikitoria/open-gpu-kernel-modules.git
+cd open-gpu-kernel-modules
+git checkout 580.76.05-p2p
+./install.sh
+nvidia-smi topo -p2p r
+nvidia-smi topo -m
+```
+
+```
 git clone https://github.com/ec-jt/open-gpu-kernel-modules
 cd open-gpu-kernel-modules
 git checkout 570.148.08-p2p
