@@ -56,7 +56,9 @@ sudo reboot -f
 git clone https://github.com/aikitoria/open-gpu-kernel-modules.git
 cd open-gpu-kernel-modules
 git checkout 580.76.05-p2p
+mv kernel-open/nvidia-peermem kernel-open/nvidia-peermem.disabled
 ./install.sh
+mv kernel-open/nvidia-peermem.disabled kernel-open/nvidia-peermem
 nvidia-smi topo -p2p r
 nvidia-smi topo -m
 ```
