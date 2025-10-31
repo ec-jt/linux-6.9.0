@@ -89,9 +89,14 @@ make cleanoldconfig 2>/dev/null || true
 make -j1 V=1 2>&1 | tee build.log
 ```
 
-### debug gpu firmware uvm drop off
+### debug gpu reset/firmware uvm drop off
 ```
 sudo dmesg -w | egrep -i 'pcie|aer|dpc|fatal|uncorr|xid'
+sudo journalctl -k -b -1 -o short-monotonic | less
+```
+
+### debug gpu link training
+```
 # Set on both the endpoint and its upstream/downstream port (04:00.0)
 for dev in 05:00.0 04:00.0; do
   # Set Link Control 2 Target Link Speed = 4 (16 GT/s)
