@@ -1,5 +1,5 @@
 # Kernel flags not enough to get rebar working - *machine specific fix, gating required*
-## BUG: Enabled IOMMU to fixed gpu firmware wedge bug (absorbs fault at loss but adds latency resulting in loss of 10% token speed) 
+## BUG: Enabled IOMMU to fix gpu firmware wedge bug and pci=ats=off to grub (absorbs fault at loss but adds latency resulting in loss of 10% token speed) 
 ## TODO: Adjust resource_size_t with custom sizes for each bridge and update forced_np_size and enabke streamops/peermem for optimal performance
 Realfix:
 Adujust resource_size_t to 230 or set custom sizes for each bridge by updating forced_np_size function
