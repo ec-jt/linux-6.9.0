@@ -1,10 +1,6 @@
 # Kernel flags not enough to get rebar working - *machine specific fix, gating required*
-## BUG: Enabled IOMMU to fix gpu firmware wedge bug and pci=ats=off to grub (absorbs fault at loss but adds latency resulting in loss of 10% token speed) 
+## BUG: Enabled IOMMU and pci=ats=off to fix gpu full-chip reset mid-run (GSP/RM can’t talk to the device and UVM global fatal 0x60 (absorbs fault at loss but adds latency resulting in loss of 10% token speed)
 ## TODO: Adjust resource_size_t with custom sizes for each bridge and update forced_np_size and enabke streamops/peermem for optimal performance
-Realfix:
-Adujust resource_size_t to 230 or set custom sizes for each bridge by updating forced_np_size function
-
-Free up MMIO by removing GPU HD audio functions not just disabling and removing 
 ### root windows 80:03.1 needs 240M unless AST VGA is removed or replace a GPU with a NIC on the root complex, others need 228M
 ### NP freed by removing BMC VGA (AST) (20MB), SATA AHCI and USB: ASM1042A + AMD xHCI (4MB) and Switchtec mgmt functions
 
