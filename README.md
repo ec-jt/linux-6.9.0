@@ -1,4 +1,10 @@
 # Kernel flags not enough to get rebar working - *machine specific fix, gating required*
+## BUG: Enabled IOMMU to fixed gpu firmware wedge bug (absorbs fault at loss but adds latency resulting in loss of 10% token speed) 
+## TODO: Adjust resource_size_t with custom sizes for each bridge and update forced_np_size and enabke streamops/peermem for optimal performance
+Realfix:
+Adujust resource_size_t to 230 or set custom sizes for each bridge by updating forced_np_size function
+
+Free up MMIO by removing GPU HD audio functions not just disabling and removing 
 ### root windows 80:03.1 needs 240M unless AST VGA is removed or replace a GPU with a NIC on the root complex, others need 228M
 ### NP freed by removing BMC VGA (AST) (20MB), SATA AHCI and USB: ASM1042A + AMD xHCI (4MB) and Switchtec mgmt functions
 
@@ -89,6 +95,7 @@ make -j1 V=1 2>&1 | tee build.log
 
 ### debug gpu firmware uvm drop off
 ```
+sudo dmesg -w | egrep -i 'pcie|aer|dpc|fatal|uncorr|xid'
 # Set on both the endpoint and its upstream/downstream port (04:00.0)
 for dev in 05:00.0 04:00.0; do
   # Set Link Control 2 Target Link Speed = 4 (16 GT/s)
