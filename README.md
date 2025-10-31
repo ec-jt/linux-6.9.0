@@ -87,6 +87,23 @@ make cleanoldconfig 2>/dev/null || true
 make -j1 V=1 2>&1 | tee build.log
 ```
 
+### debug gpu firmware uvm drop off
+```
+# Set on both the endpoint and its upstream/downstream port (04:00.0)
+for dev in 05:00.0 04:00.0; do
+  # Set Link Control 2 Target Link Speed = 4 (16 GT/s)
+  setpci -s $dev CAP_EXP+0x32.b=04
+  # Retrain the link (set bit 5 in Link Control)
+  setpci -s $dev CAP_EXP+0x10.w=0020:0020
+done
+
+# Set GPU (06:00.0):
+for dev in 06:00.0 04:01.0; do
+  setpci -s $dev CAP_EXP+0x32.b=04
+  setpci -s $dev CAP_EXP+0x10.w=0020:0020
+done
+```
+
 ## Change notes
 ### patched drivers/pci/quirks.c for bar 1 firmware and free NP memory space
 ```
