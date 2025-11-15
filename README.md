@@ -1,4 +1,5 @@
-# Kernel flags not enough to get rebar working - *machine specific fix, gating required*
+## R23 BIOS V0100 supported
+## Kernel flags not enough to get rebar working - *machine specific fix, gating required*
 ## BUG: Enabled IOMMU and pci=ats=off to fix gpu full-chip reset mid-run (GSP/RM can’t talk to the device and UVM global fatal 0x60 (absorbs fault at loss but adds latency resulting in loss of 10% token speed)
 ## TODO: Upgrade to 6.12 as planned and adjust resource_size_t with custom sizes for each bridge and update forced_np_size and enabke streamops/peermem for optimal performance
 ### root windows 80:03.1 needs 240M unless AST VGA is removed or replace a GPU with a NIC on the root complex, others need 228M
